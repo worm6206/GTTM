@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <title>score</title>
+
+  </head>
+
+  <body>
+
+<!-- load the d3.js library -->	
+<script src="http://d3js.org/d3.v3.min.js"></script>
+	
+<script>
+
+//music
+var duration = [2, 1, 1, 2, 2, 4, 4, 2, 1, 1, 2, 2, 4, 4, 2, 1, 1, 2, 2, 2, 1, -1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4];
+
+var pitch = [56, 56, 58, 56, 55, 60, 60, 56, 56, 58, 56, 60, 65, 65, 65, 65, 66, 65, 65, 65, 70, 65, 60, 58, 56, 58, 60, 61, 60, 64, 65, 65];
+
+//Make an SVG Container
+var svgContainer = d3.select("body").append("svg")
+                                    .attr("width", window.innerWidth-32)
+                                    .attr("height", window.innerHeight-32);
+
+var x_start = 50;
+var y_start = 50;
+var gap_y = 7;
+var gap_x = 20;
+var box_h = Math.max.apply(null,pitch)-Math.min.apply(null,pitch)+2;
+var box_w = duration.reduce(function(a, b) { 
+	if(b>0) return a + b;
+	else return a - b; 
+}, 0);
+
+//horizontal lines
+var h_lines = [];
+for(var x=0;x<box_h;x++){
+	h_lines.push(svgContainer.append("line")
+	                         .attr("x1", x_start)
+	                         .attr("y1", y_start+gap_y*x)
+	                         .attr("x2", gap_x*box_w+x_start)
+	                         .attr("y2", y_start+gap_y*x)
+	                         .attr("stroke-width", 1)
+	                         .attr("stroke", "grey"));
+}
+
+//vertical
+var v_lines = [];
+for(var x=0;x<box_w+1;x++){
+	h_lines.push(svgContainer.append("line")
+	                         .attr("x1", x_start+x*gap_x)
+	                         .attr("y1", y_start)
+	                         .attr("x2", x_start+x*gap_x)
+	                         .attr("y2", y_start+(box_h-1)*gap_y)
+	                         .attr("stroke-width", 1)
+	                         .attr("stroke", "grey"));
+}
+
+//notes
+var notes = [];
+var x_now = x_start;
+var pitch_index = 0;
+for(var x=0;x<duration.length;x++){
+	if(duration[x]>0){
+		notes.push(svgContainer.append("rect")
+		                            .attr("x", x_now)
+		                            .attr("y", y_start+gap_y*(Math.max.apply(null,pitch)-pitch[pitch_index]))
+		                            .attr("width", gap_x*duration[x])
+		                            .attr("height", gap_y));	
+		pitch_index++;
+	}
+	x_now += Math.abs(duration[x])*gap_x;
+}
+
+
+
+</script>
+	
+  </body>
+</html>

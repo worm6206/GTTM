@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <title>score</title>
+<link href="https://fonts.googleapis.com/css?family=Noto+Serif" rel="stylesheet">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+  </head>
+
+    <style>
+
+/*	.node circle {
+	  fill: steelblue;
+	  stroke: steelblue;
+	  stroke-width: 3px;
+	}*/
+
+	.node text { font: 12px sans-serif; }
+
+	.link {
+	  fill: none;
+	  stroke: #ccc;
+	  stroke-width: 2px;
+	}
+	body{
+font-family: 'Noto Serif', serif;
+	}
+	
+    </style>
+
+  <body>
+<h1>File to piano roll</h1>
+<hr>
+<h3>- What should the file be like?</h3>
+<p>It should be a plaintext file. There should be two lines and two lines only. First line should be "Duration line" and second line should be "Pitch line"</p>
+<h3>- Format of duration line</h3>
+<p>Smallest duration should be 1. Duration of rests should be negative. Split notes by space.</p>
+<h3>- Format of pitch line</h3>
+<p>Smallest pitch is 0. 0 stands for C, 1 stands for C#, ... , 11 stands for B, 12 stands for C that is one octave higher than 0, 13 stands for C# one octave higher than 1, and so on. Skip rests. Split notes by space.</p>
+<h3>- Example</h3>
+<p>File name: <i>Für_Elise.txt</i></p>
+<p>File content:</p>
+<p><pre>1 1 1 1 1 1 1 1 2 -1 1 1 1 2 -1 1 1 1 2 -1 1 1 1 1 1 1 1 1 1 2 -1 1 1 1 2 -1 1 1 1 4
+16 15 16 15 16 11 14 12 9 0 4 9 11 4 8 11 12 4 16 15 16 15 16 11 14 12 9 0 4 9 11 4 12 11 9</pre></p>
+<hr>
+<input type=file id=files />
+<button id=upload>Upload</button><br>
+block width: <input type="text" id="width" value="20"><br>
+block height: <input type="text" id="height" value="10"><br>
+<!-- load the d3.js library -->	
+<script src="http://d3js.org/d3.v3.min.js"></script>
+	
+<script>
+
+var fileInput = $('#files');
+var uploadButton = $('#upload');
+
+uploadButton.on('click', function() {
+    if (!window.FileReader) {
+        alert('Your browser is not supported')
+    }
+    var input = fileInput.get(0);
+    
+    // Create a reader object
+    var reader = new FileReader();
+    if (input.files.length) {
+        var textFile = input.files[0];
+        reader.readAsText(textFile);
+        $(reader).on('load', processFile);
+    } else {
+        alert('Please upload a file before continuing')
+    } 
+});
+
+// var duration = [2, 1, 1, 2, 2, 4, 4, 2, 1, 1, 2, 2, 4, 4, 2, 1, 1, 2, 2, 2, 1, -1, 4, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4];
+
+// var pitch = [56, 56, 58, 56, 55, 60, 60, 56, 56, 58, 56, 60, 65, 65, 65, 65, 66, 65, 65, 65, 70, 65, 60, 58, 56, 58, 60, 61, 60, 64, 65, 65];
+
+var duration,pitch,results,box_h,box_w,width,height;
+
+function processFile(e) {
+    var file = e.target.result;
+    if (file && file.length) {
+        results = file.split("\n");
+        duration = results[0].split(/\s+/).map(function(x){return Number(x)});
+        pitch = results[1].split(/\s+/).map(function(x){return Number(x)});
+		box_w = duration.reduce(function(a, b) { 
+			if(b>0) return a + b;
+			else return a - b; 
+		}, 0);
+		box_h = Math.max.apply(null,pitch)-Math.min.apply(null,pitch)+2;
+        height = 5+Number($('#height').val()) * (box_h+2);
+        width = Number($('#width').val()) * (box_w+2);
+        draw();
+    }
+}
+   
+
+function draw(){
+
+	//Make an SVG Container
+	var svgContainer = d3.select("body").append("svg")
+	                                    .attr("width", width)
+	                                    .attr("height", height)
+	                                    .append("g");
+
+	// tree basic
+
+	var i = 0,ii=0;
+
+	var tree = d3.layout.tree();
+
+	var diagonal = d3.svg.diagonal()
+		.projection(function(d) { return [d.x, d.y]; });
+
+	//music
+
+	var notes_list = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+	var y_off = 10;
+	var x_start = 25;
+	var y_start = y_off+Number($('#height').val())*2;
+	var gap_y = Number($('#height').val());
+	// var box_h = Math.max.apply(null,pitch)-Math.min.apply(null,pitch)+2;
+	// var box_w = duration.reduce(function(a, b) { 
+	// 	if(b>0) return a + b;
+	// 	else return a - b; 
+	// }, 0);
+	var gap_x = Number($('#width').val());
+
+	svgContainer.append("text")
+		.attr("x",5+x_start-gap_x)
+		.attr("y",5+y_off+Number($('#height').val()))
+		.text(function(){return document.getElementById('files').value.split('\\').pop().split('.')[0]})
+		.style("font-size",Number($('#height').val())*2+"px");
+
+	//horizontal lines
+	var h_lines = [];
+	var top_note = Math.max.apply(null,pitch);
+	for(var x=0;x<box_h;x++){
+		h_lines.push(svgContainer.append("line")
+			                         .attr("x1", x_start-gap_x)
+			                         .attr("y1", y_start+gap_y*x)
+			                         .attr("x2", gap_x*box_w+x_start)
+			                         .attr("y2", y_start+gap_y*x)
+			                         .attr("stroke-width", 1)
+			                         .attr("stroke", "#d9d9d9"));
+						if(x != box_h-1){
+						svgContainer.append("text")
+	                       	 .attr("y",y_start+gap_y*x+gap_y)
+	                       	 .attr("x",x_start-15)
+	                       	 .text(function(){return notes_list[((top_note-x)%12)]})
+	                       	 .style("font-size",Number($('#height').val())+"px");
+	                       	}
+	}
+
+	//vertical
+	var v_lines = [];
+	for(var x=0;x<box_w+1;x++){
+		h_lines.push(svgContainer.append("line")
+		                         .attr("x1", x_start+x*gap_x)
+		                         .attr("y1", y_start)
+		                         .attr("x2", x_start+x*gap_x)
+		                         .attr("y2", y_start+(box_h-1)*gap_y)
+		                         .attr("stroke-width", 1)
+		                         .attr("stroke", "#d9d9d9"));
+	}
+
+	//notes
+	var notes = [];
+	var x_now = x_start;
+	var pitch_index = 0;
+	var color = d3.scale.category20();
+	var node_x = [];
+	for(var x=0;x<duration.length;x++){
+		if(duration[x]>0){
+			node_x.push(x_now);
+			notes.push(svgContainer.append("rect")
+										.attr("id",function(d){return "b"+pitch_index;})
+			                            .attr("x", x_now)
+			                            .attr("y", y_start+gap_y*(Math.max.apply(null,pitch)-pitch[pitch_index]))
+			                            .attr("width", gap_x*duration[x])
+			                            .attr("height", gap_y)
+			                            .attr("fill","steelblue")
+			                            .attr("stroke", "white")
+	                            		.attr("stroke-width", 1));
+
+			pitch_index++;
+		}
+		x_now += Math.abs(duration[x])*gap_x;
+	}
+	svg2png();
+}
+
+function svg2png(){
+
+var doctype = '<?xml version="1.0" standalone="no"?>'
+  + '<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">';
+
+// serialize our SVG XML to a string.
+var source = (new XMLSerializer()).serializeToString(d3.select('svg').node());
+
+// create a file blob of our SVG.
+var blob = new Blob([ doctype + source], { type: 'image/svg+xml;charset=utf-8' });
+
+var url = window.URL.createObjectURL(blob);
+
+// Put the svg into an image tag so that the Canvas element can read it in.
+var img = d3.select('body').append('img')
+ .attr('width', width)
+ .attr('height', height)
+ .node();
+
+
+img.onload = function(){
+  // Now that the image has loaded, put the image into a canvas element.
+  var canvas = d3.select('body').append('canvas').node();
+  canvas.width = width;
+  canvas.height = height;
+  var ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  var canvasUrl = canvas.toDataURL("image/png");
+  var img2 = d3.select('body').append('img')
+    .attr('width', width)
+    .attr('height', height)
+    .node();
+  // this is now the base64 encoded version of our PNG! you could optionally 
+  // redirect the user to download the PNG by sending them to the url with 
+  // `window.location.href= canvasUrl`.
+  img2.src = canvasUrl; 
+  window.location.href= canvasUrl;
+}
+// start loading the image.
+img.src = url;
+
+}
+
+
+
+
+
+</script>
+	
+  </body>
+</html>
